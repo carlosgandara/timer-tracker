@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1>📊 Your Week</h1>
+    <p>Total: {{ total_hours }} hours logged this week.</p>
+    <div class="summary">
+        <h2>Summary</h2>
+        <div class="summary-grid">
+            {% for item in summary %}
+            <div class="summary-item">
+                <div class="summary-color" style="background-color: {{ item.color }};"></div>
+                <div class="summary-details">
+                    <span class="summary-activity">{{ item.color }}</span>
+                    <span class="summary-time">{{ item.display }}</span>
+                    <div class="summary-bar">
+                        <div class="summary-bar-fill" style="width: {{ item.percentage }}%; background-color: {{ item.color }};"></div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    <h2>Daily Logs</h2>
+    {% for day_key, day_data in days.items() %}
+    <div class="day-section">
+        <h3>{{ day_data.date }}</h3>
+        <div class="day-logs">
+            {% if day_data.logs %}
+                {% for log in day_data.logs %}
+                <div class="log-entry">
+                    <span class="log-time">{{ log.time }}</span>
+                    <span class="log-color" style="background-color: {{ log.color }};"></span>
+                    <span class="log-activity">{{ log.activity }}</span>
+                    <span class="log-duration">{{ log.duration_min }}m</span>
+                    <div class="log-bar" style="width: {{ log.duration_min * 2 }}px; background-color: {{ log.color }};"></div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="empty-day">No logs for this day.</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

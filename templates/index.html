@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1>Tap a Color to Start</h1>
+    <p>Tap a color, do your activity, then tap "Stop".</p>
+    <div class="color-grid">
+        {% for color in colors %}
+        <div class="color-square" data-color="{{ color.color }}" style="background-color: {{ color.color }};">
+            <span class="color-label">{{ color.activity }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="timer-section" id="timer-section" style="display: none;">
+        <h2 id="current-activity">Working...</h2>
+        <div class="timer-bar" id="timer-bar">0s</div>
+        <div class="timer-progress"><div class="timer-progress-fill" id="timer-progress-fill" style="width:0%;"></div></div>
+        <button id="stop-btn" class="stop-btn">⏹ Stop</button>
+    </div>
+</div>
+{% endblock %}

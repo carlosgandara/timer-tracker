@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1>⚙️ Color Settings</h1>
+    <p>Rename each color to your own activity.</p>
+    <form method="POST" class="settings-form">
+        {% for color in colors %}
+        <div class="setting-row">
+            <div class="color-preview" style="background-color: {{ color.color }};"></div>
+            <label for="color_{{ color.color }}">{{ color.color }}:</label>
+            <input type="text" name="color_{{ color.color }}" value="{{ color.activity }}" placeholder="Enter activity">
+        </div>
+        {% endfor %}
+        <button type="submit" class="save-btn">Save Changes</button>
+    </form>
+</div>
+{% endblock %}
