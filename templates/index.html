@@ -2,19 +2,40 @@
 
 {% block content %}
 <div class="container">
-    <h1>Tap a Color to Start</h1>
-    <p>Tap a color, do your activity, then tap "Stop".</p>
-    <div class="color-grid">
+    <!-- Mascot & Title -->
+    <div class="hero">
+        <span class="mascot-big">🦊</span>
+        <h1>Tap a Color to Start</h1>
+        <p class="subtitle">Choose what you're doing, then tap "Stop" when you're done.</p>
+    </div>
+
+    <!-- Color Grid – smaller squares -->
+    <div class="color-grid compact">
         {% for color in colors %}
-        <div class="color-square" data-color="{{ color.color }}" style="background-color: {{ color.color }};">
+        <div class="color-square small" 
+             data-color="{{ color.color }}" 
+             style="background-color: {{ color_hex_map[color.color] }};" 
+             title="{{ color.activity }}">
             <span class="color-label">{{ color.activity }}</span>
         </div>
         {% endfor %}
     </div>
+
+    <!-- Timer Section – rearranged -->
     <div class="timer-section" id="timer-section" style="display: none;">
-        <h2 id="current-activity">Working...</h2>
-        <div class="timer-bar" id="timer-bar">0s</div>
-        <div class="timer-progress"><div class="timer-progress-fill" id="timer-progress-fill" style="width:0%;"></div></div>
+        <!-- Timer display at the top (big numbers) -->
+        <div class="timer-header">
+            <span class="mascot-timer" id="mascot-emoji">🦊</span>
+            <span id="current-activity" class="activity-name">Working...</span>
+        </div>
+        <div class="timer-display" id="timer-bar">0s</div>
+        
+        <!-- Progress bar (thick, visible) -->
+        <div class="timer-progress">
+            <div class="timer-progress-fill" id="timer-progress-fill" style="width: 0%;"></div>
+        </div>
+        
+        <!-- Stop button at the bottom -->
         <button id="stop-btn" class="stop-btn">⏹ Stop</button>
     </div>
 </div>
