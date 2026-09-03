@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
 from config import Config
-from models import db, Log, ColorMap
+from models import db, Log, ColorMap, TimerSession
 from datetime import datetime, timedelta
 from collections import defaultdict
 
@@ -54,21 +54,17 @@ def log():
     db.session.add(log_entry)
     db.session.commit()
 
-    print(f"✅ Log saved: {color} | {activity} | {duration}s at {log_entry.timestamp} UTC")
     return jsonify({"success": True, "log_id": log_entry.id})
 
 @app.route("/dashboard")
 def dashboard():
-    # 1. Get parameters from URL
     offset_minutes = request.args.get("offset", 0, type=int)
     week_param = request.args.get("week")
     year_param = request.args.get("year")
 
-    # 2. Compute current local time using offset
     now_utc = datetime.utcnow()
     now_local = now_utc + timedelta(minutes=offset_minutes)
 
-    # 3. Validate / default week and year
     try:
         selected_week = int(week_param) if week_param else now_local.isocalendar()[1]
         selected_year = int(year_param) if year_param else now_local.year
@@ -79,33 +75,20 @@ def dashboard():
         selected_week = now_local.isocalendar()[1]
         selected_year = now_local.year
 
-    # 4. Compute Monday and Sunday of the selected week (local time)
     jan4 = datetime(selected_year, 1, 4)
     days_to_monday = (jan4.weekday() - 0) % 7
     monday_week1 = jan4 - timedelta(days=days_to_monday)
     monday_local = monday_week1 + timedelta(weeks=selected_week - 1)
     sunday_local = monday_local + timedelta(days=6)
 
-    # 5. Convert local to UTC for query (since stored timestamps are UTC)
-    # local = UTC + offset_minutes  =>  UTC = local - offset_minutes
     monday_utc = monday_local - timedelta(minutes=offset_minutes)
     sunday_utc = sunday_local - timedelta(minutes=offset_minutes) + timedelta(days=1)
 
-    # Debug (optional)
-    print(f"📅 Week {selected_week}, {selected_year}")
-    print(f"   Offset: {offset_minutes} minutes")
-    print(f"   Local range: {monday_local.date()} to {sunday_local.date()}")
-    print(f"   UTC range: {monday_utc} to {sunday_utc}")
-
-    # 6. Query logs within UTC range
     logs = Log.query.filter(
         Log.timestamp >= monday_utc,
         Log.timestamp < sunday_utc
     ).order_by(Log.timestamp.asc()).all()
 
-    print(f"   Total logs in range: {len(logs)}")
-
-    # 7. Build days_data using local dates (Monday–Sunday in user's timezone)
     days_data = {}
     for i in range(7):
         day = monday_local + timedelta(days=i)
@@ -115,16 +98,12 @@ def dashboard():
             "logs": []
         }
 
-    # 8. Fill logs, converting each UTC timestamp to local time
     for log in logs:
-        # local = UTC - offset_minutes (since offset_minutes is negative for west)
         log_local = log.timestamp - timedelta(minutes=offset_minutes)
         day_str = log_local.strftime("%Y-%m-%d")
         if day_str in days_data:
-            # Look up the hex code for this color
             color_map = ColorMap.query.filter_by(color=log.color).first()
             hex_code = color_map.hex_code if color_map else "#cccccc"
-
             days_data[day_str]["logs"].append({
                 "time": log_local.strftime("%I:%M %p"),
                 "color": log.color,
@@ -134,7 +113,13 @@ def dashboard():
                 "duration_min": round(log.duration / 60, 1),
             })
 
-    # 9. Summary (total per color)
+    # Compute day totals
+    for day_str in days_data:
+        day_logs = days_data[day_str]["logs"]
+        total_seconds = sum(log["duration"] for log in day_logs)
+        days_data[day_str]["total"] = round(total_seconds / 60, 1)
+
+    # Summary
     summary = defaultdict(int)
     for log in logs:
         summary[log.color] += log.duration
@@ -160,8 +145,6 @@ def dashboard():
         })
 
     total_hours = round(total_seconds / 3600, 1) if total_seconds > 0 else 0
-
-    # 10. Year dropdown values
     years = list(range(selected_year - 2, selected_year + 3))
 
     return render_template(
@@ -263,6 +246,76 @@ def get_logs_by_date(date):
         return jsonify(data)
     except ValueError:
         return jsonify({"error": "Invalid date format"}), 400
+
+# ========== PERSISTENT TIMER ROUTES ==========
+
+@app.route("/start", methods=["POST"])
+def start_timer():
+    """Start a timer session – saves to database."""
+    data = request.get_json()
+    color = data.get("color")
+    
+    if not color:
+        return jsonify({"error": "Missing color"}), 400
+    
+    color_map = ColorMap.query.filter_by(color=color).first()
+    activity = color_map.activity if color_map else color
+
+    # Clear any previous active session
+    TimerSession.query.delete()
+    db.session.commit()
+
+    # Create new session
+    session = TimerSession(color=color, activity=activity)
+    db.session.add(session)
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "start_time": session.start_time.isoformat(),
+        "color": session.color,
+        "activity": session.activity
+    })
+
+@app.route("/stop", methods=["POST"])
+def stop_timer():
+    """Stop the timer – saves the log and deletes the session."""
+    data = request.get_json()
+    color = data.get("color")
+    duration = data.get("duration")
+
+    if not color or duration is None:
+        return jsonify({"error": "Missing color or duration"}), 400
+
+    # Get activity from ColorMap
+    color_map = ColorMap.query.filter_by(color=color).first()
+    activity = color_map.activity if color_map else color
+
+    # Save the log
+    log_entry = Log(color=color, activity=activity, duration=int(duration))
+    db.session.add(log_entry)
+    db.session.commit()
+
+    # Delete the active session
+    TimerSession.query.delete()
+    db.session.commit()
+
+    return jsonify({"success": True, "log_id": log_entry.id})
+
+@app.route("/active-timer")
+def active_timer():
+    """Check if there's an active timer session."""
+    session = TimerSession.query.first()
+    if session:
+        elapsed = (datetime.utcnow() - session.start_time).total_seconds()
+        return jsonify({
+            "active": True,
+            "color": session.color,
+            "activity": session.activity,
+            "start_time": session.start_time.isoformat(),
+            "elapsed_seconds": elapsed
+        })
+    return jsonify({"active": False})
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

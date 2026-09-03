@@ -14,50 +14,74 @@ document.addEventListener('DOMContentLoaded', () => {
     const mascotEmoji = document.getElementById('mascot-emoji');
 
     console.log('✅ Timer app loaded');
-
-    // Hide timer section initially
     timerSection.style.display = 'none';
 
+    // ✅ CHECK FOR ACTIVE TIMER ON PAGE LOAD
+    fetch('/active-timer')
+        .then(res => res.json())
+        .then(data => {
+            if (data.active) {
+                console.log('⏱️ Active timer found:', data);
+                selectedColor = data.color;
+                const activity = data.activity;
+                startTimer(activity, data.elapsed_seconds);
+                colorGrid.style.display = 'none';
+                timerSection.style.display = 'block';
+            }
+        })
+        .catch(err => console.error('Error checking active timer:', err));
+
+    // Color click handler
     colorSquares.forEach(square => {
         square.addEventListener('click', () => {
             console.log('🟦 Color clicked:', square.dataset.color);
-            // If a timer is already running, stop it first
+            
             if (timerInterval) {
                 clearInterval(timerInterval);
                 timerInterval = null;
                 timerSection.style.display = 'none';
                 colorGrid.style.display = 'grid';
             }
+            
             selectedColor = square.dataset.color;
             const activity = square.querySelector('.color-label').textContent;
-            startTimer(activity);
-            // Hide color grid, show timer
-            colorGrid.style.display = 'none';
-            timerSection.style.display = 'block';
+            
+            // ✅ Start the timer on the server
+            fetch('/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ color: selectedColor })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('✅ Timer started on server at:', data.start_time);
+                    startTimer(activity, 0);
+                    colorGrid.style.display = 'none';
+                    timerSection.style.display = 'block';
+                }
+            })
+            .catch(err => console.error('Error starting timer:', err));
         });
     });
 
+    // Stop button handler
     stopBtn.addEventListener('click', () => {
         console.log('⏹ Stop button clicked');
         if (timerInterval) {
             stopTimer();
             saveLog();
-            const colorGrid = document.querySelector('.color-grid');
-            colorGrid.style.display = 'grid';
-            timerSection.style.display = 'none';
         }
     });
 
-    function startTimer(activity) {
-        console.log('⏱️ Starting timer for:', activity);
+    function startTimer(activity, offset = 0) {
+        console.log('⏱️ Starting timer for:', activity, 'offset:', offset);
         timerSection.style.display = 'block';
         currentActivity.textContent = '⏱️ ' + activity;
-        timerBar.textContent = '0s';
+        timerBar.textContent = Math.floor(offset) + 's';
         timerProgressFill.style.width = '0%';
-        startTime = Date.now();
-        elapsedSeconds = 0;
-
-        // Update mascot
+        startTime = Date.now() - (offset * 1000);
+        elapsedSeconds = offset;
         mascotEmoji.textContent = '🚀';
 
         timerInterval = setInterval(() => {
@@ -73,7 +97,6 @@ document.addEventListener('DOMContentLoaded', () => {
         clearInterval(timerInterval);
         timerInterval = null;
         timerSection.style.display = 'none';
-        // Mascot says goodbye
         mascotEmoji.textContent = '🎉';
     }
 
@@ -88,9 +111,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const payload = { color: selectedColor, duration: elapsedSeconds };
-        console.log('📤 Sending:', payload);
+        console.log('📤 Sending stop request:', payload);
 
-        fetch('/log', {
+        // ✅ Stop the timer on the server
+        fetch('/stop', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
