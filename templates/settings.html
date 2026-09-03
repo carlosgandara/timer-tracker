@@ -2,17 +2,123 @@
 
 {% block content %}
 <div class="container">
-    <h1>⚙️ Color Settings</h1>
-    <p>Rename each color to your own activity.</p>
-    <form method="POST" class="settings-form">
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message | safe }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <h1>⚙️ Settings</h1>
+    <p>Add a new task or edit your existing ones.</p>
+
+    <!-- ADD NEW TASK -->
+    <div class="add-section">
+        <h3>➕ New Task</h3>
+        <form method="POST" class="add-form">
+            <input type="hidden" name="action" value="add">
+            <div class="add-row">
+                <input type="text" name="activity" placeholder="Task name (e.g., Yoga)" required id="new-activity">
+                <input type="color" name="hex_code" value="#4f8cf7" id="new-color">
+                <input type="hidden" name="color" id="color-id">
+                <button type="submit" class="btn-add">Add</button>
+            </div>
+        </form>
+    </div>
+
+    <hr>
+
+    <!-- EXISTING TASKS -->
+    <div class="list-section">
+        <h3>📋 Your Tasks</h3>
         {% for color in colors %}
-        <div class="setting-row">
-            <div class="color-preview" style="background-color: {{ color.color }};"></div>
-            <label for="color_{{ color.color }}">{{ color.color }}:</label>
-            <input type="text" name="color_{{ color.color }}" value="{{ color.activity }}" placeholder="Enter activity">
+        <div class="task-row">
+            <form method="POST" class="edit-form">
+                <input type="hidden" name="action" value="edit">
+                <input type="hidden" name="color_id" value="{{ color.id }}">
+                <div class="edit-row">
+                    <div class="color-preview" style="background: {{ color.hex_code }};"></div>
+                    <input type="text" name="activity" value="{{ color.activity }}" placeholder="Task name" required>
+                    <input type="color" name="hex_code" value="{{ color.hex_code }}" class="color-picker">
+                    <button type="submit" class="btn-update">Update</button>
+                </div>
+            </form>
+            <form method="POST" class="delete-form">
+                <input type="hidden" name="action" value="delete">
+                <input type="hidden" name="color_id" value="{{ color.id }}">
+                <button type="submit" class="btn-delete" onclick="return confirm('Delete {{ color.activity }}?');">🗑️</button>
+            </form>
         </div>
         {% endfor %}
-        <button type="submit" class="save-btn">Save Changes</button>
-    </form>
+    </div>
 </div>
+
+<script>
+    // Auto-fill the hidden 'color' field with a slug from the activity name
+    document.getElementById('new-activity').addEventListener('input', function() {
+        const val = this.value.trim().toLowerCase().replace(/\s+/g, '_');
+        document.getElementById('color-id').value = val;
+    });
+</script>
+
+<style>
+    /* --- General --- */
+    .container { max-width: 700px; margin: 2rem auto; padding: 0 1rem; }
+    h1 { font-size: 2rem; margin-bottom: 0.2rem; }
+    p { color: #4a5568; margin-bottom: 1.5rem; }
+
+    /* --- Flash Messages --- */
+    .flash {
+        padding: 0.8rem 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        font-weight: 500;
+    }
+    .flash.success {
+        background: #f0fff4;
+        color: #276749;
+        border: 1px solid #c6f6d5;
+    }
+    .flash.error {
+        background: #fff5f5;
+        color: #9b2c2c;
+        border: 1px solid #feb2b2;
+    }
+
+    /* --- Add Section --- */
+    .add-section { background: white; padding: 1.5rem; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 2rem; }
+    .add-row { display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: center; }
+    .add-row input[type="text"] { flex: 2; min-width: 120px; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 6px; }
+    .add-row input[type="color"] { width: 50px; height: 40px; padding: 2px; cursor: pointer; border: 1px solid #e2e8f0; border-radius: 6px; }
+    .btn-add { background: #4f8cf7; color: white; border: none; padding: 0.5rem 1.5rem; border-radius: 8px; font-weight: 600; cursor: pointer; height: 40px; }
+    .btn-add:hover { background: #3b7bdd; }
+
+    hr { border: none; border-top: 2px solid #e2e8f0; margin: 1.5rem 0; }
+
+    /* --- Existing Tasks --- */
+    .list-section { margin-top: 1rem; }
+    .task-row { display: flex; align-items: center; gap: 0.5rem; background: white; padding: 0.4rem 1rem; border-radius: 8px; margin-bottom: 0.4rem; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+    .edit-form { flex: 1; }
+    .edit-row { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+    .color-preview { width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; border: 2px solid #e2e8f0; }
+    .edit-row input[type="text"] { flex: 2; min-width: 80px; padding: 0.3rem 0.6rem; border: 1px solid #e2e8f0; border-radius: 6px; }
+    .edit-row input[type="color"] { width: 36px; height: 32px; padding: 2px; cursor: pointer; border: 1px solid #e2e8f0; border-radius: 6px; flex-shrink: 0; }
+    .btn-update { background: #38a169; color: white; border: none; padding: 0.2rem 0.8rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer; height: 30px; }
+    .btn-update:hover { background: #2f855a; }
+
+    .delete-form { display: inline-block; }
+    .btn-delete { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #e53e3e; padding: 0.1rem 0.3rem; border-radius: 4px; transition: background 0.2s; height: 30px; display: flex; align-items: center; }
+    .btn-delete:hover { background: #fff5f5; }
+
+    @media (max-width: 600px) {
+        .add-row { flex-direction: column; align-items: stretch; }
+        .edit-row { flex-direction: column; align-items: stretch; gap: 0.4rem; }
+        .edit-row input[type="text"] { width: 100%; }
+        .edit-row input[type="color"] { width: 100%; }
+        .task-row { flex-direction: column; align-items: stretch; }
+        .btn-update, .btn-delete { width: 100%; text-align: center; }
+    }
+</style>
 {% endblock %}

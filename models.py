@@ -19,8 +19,14 @@ class ColorMap(db.Model):
     __tablename__ = "color_maps"
     
     id = db.Column(db.Integer, primary_key=True)
-    color = db.Column(db.String(20), unique=True, nullable=False)
-    activity = db.Column(db.String(50), nullable=False)
+    color = db.Column(db.String(20), unique=True, nullable=False)  # internal name
+    hex_code = db.Column(db.String(50), nullable=False)  # #hex or gradient
+    activity = db.Column(db.String(50), unique=True, nullable=False)  # <-- ADD unique=True
+    
+    is_gradient = db.Column(db.Boolean, default=False)
 
     def __repr__(self):
         return f"<ColorMap {self.color} -> {self.activity}>"
+
+
+    

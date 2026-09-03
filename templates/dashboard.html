@@ -3,44 +3,299 @@
 {% block content %}
 <div class="container">
     <h1>📊 Your Week</h1>
-    <p>Total: {{ total_hours }} hours logged this week.</p>
-    <div class="summary">
+
+    <!-- Week Selector -->
+    <form method="GET" action="/dashboard" class="week-selector" id="week-form">
+        <label for="week">Week:</label>
+        <input type="number" name="week" id="week" value="{{ selected_week }}" min="1" max="53" required>
+        <label for="year">Year:</label>
+        <select name="year" id="year">
+            {% for y in years %}
+                <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+        </select>
+        <input type="hidden" name="offset" id="offset-field" value="{{ offset }}">
+        <button type="submit" class="btn-go">Go</button>
+    </form>
+
+    <!-- 7‑Column Grid (Daily Logs) -->
+    <div class="week-grid">
+        {% for day_key, day_data in days.items() %}
+        <div class="day-column">
+            <div class="day-header">
+                {{ day_data.date.split(',')[0] }}<br>
+                <small>{{ day_data.date.split(',')[1] }}</small>
+            </div>
+            <div class="day-logs">
+                {% if day_data.logs %}
+                    {% for log in day_data.logs %}
+                    <div class="log-entry">
+                        <span class="log-time">{{ log.time }}</span>
+                        <span class="log-dot" style="background-color: {{ log.hex_code }};"></span>
+                        <span class="log-activity">{{ log.activity[:3] }}</span>
+                        <span class="log-duration">{{ log.duration_min }}m</span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-day">—</div>
+                {% endif %}
+            </div>
+            <div class="day-total">
+                {{ day_data.total }}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Summary Grid (below) -->
+    <div class="summary-section">
         <h2>Summary</h2>
         <div class="summary-grid">
             {% for item in summary %}
             <div class="summary-item">
-                <div class="summary-color" style="background-color: {{ item.color }};"></div>
+                <div class="summary-color" style="background-color: {{ item.hex_code or item.color }};"></div>
                 <div class="summary-details">
-                    <span class="summary-activity">{{ item.color }}</span>
+                    <span class="summary-activity">{{ item.activity or item.color }}</span>
                     <span class="summary-time">{{ item.display }}</span>
                     <div class="summary-bar">
-                        <div class="summary-bar-fill" style="width: {{ item.percentage }}%; background-color: {{ item.color }};"></div>
+                        <div class="summary-bar-fill" style="width: {{ item.percentage }}%; background-color: {{ item.hex_code or item.color }};"></div>
                     </div>
                 </div>
             </div>
+            {% else %}
+            <p class="empty-day">No summary data available.</p>
             {% endfor %}
         </div>
+        <p class="total-label">Total: {{ total_hours }} hours logged this week.</p>
     </div>
-    <h2>Daily Logs</h2>
-    {% for day_key, day_data in days.items() %}
-    <div class="day-section">
-        <h3>{{ day_data.date }}</h3>
-        <div class="day-logs">
-            {% if day_data.logs %}
-                {% for log in day_data.logs %}
-                <div class="log-entry">
-                    <span class="log-time">{{ log.time }}</span>
-                    <span class="log-color" style="background-color: {{ log.color }};"></span>
-                    <span class="log-activity">{{ log.activity }}</span>
-                    <span class="log-duration">{{ log.duration_min }}m</span>
-                    <div class="log-bar" style="width: {{ log.duration_min * 2 }}px; background-color: {{ log.color }};"></div>
-                </div>
-                {% endfor %}
-            {% else %}
-                <p class="empty-day">No logs for this day.</p>
-            {% endif %}
-        </div>
-    </div>
-    {% endfor %}
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const offset = new Date().getTimezoneOffset();
+        document.getElementById('offset-field').value = offset;
+        const urlParams = new URLSearchParams(window.location.search);
+        if (!urlParams.has('offset')) {
+            const week = urlParams.get('week') || {{ selected_week }};
+            const year = urlParams.get('year') || {{ selected_year }};
+            window.location.href = window.location.pathname + '?week=' + week + '&year=' + year + '&offset=' + offset;
+        }
+    });
+</script>
+
+<style>
+    .container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
+    h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+
+    .week-selector {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.8rem;
+        align-items: center;
+        background: white;
+        padding: 1rem;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .week-selector label { font-weight: 600; color: #4a5568; }
+    .week-selector input, .week-selector select {
+        padding: 0.4rem 0.6rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 1rem;
+    }
+    .week-selector input[type="number"] { width: 70px; }
+    .btn-go {
+        background: #4f8cf7;
+        color: white;
+        border: none;
+        padding: 0.4rem 1.2rem;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .btn-go:hover { background: #3b7bdd; }
+
+    .week-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 0.5rem;
+        background: white;
+        border-radius: 12px;
+        padding: 0.5rem;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        margin-bottom: 2rem;
+    }
+
+    .day-column {
+        background: #f9fafb;
+        border-radius: 8px;
+        padding: 0.5rem;
+        display: flex;
+        flex-direction: column;
+        min-height: 200px;
+    }
+
+    .day-header {
+        text-align: center;
+        font-weight: 600;
+        color: #1a2332;
+        padding-bottom: 0.3rem;
+        border-bottom: 2px solid #e2e8f0;
+        margin-bottom: 0.3rem;
+        font-size: 0.9rem;
+    }
+    .day-header small {
+        font-weight: 400;
+        color: #4a5568;
+        font-size: 0.7rem;
+    }
+
+    .day-logs {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+        font-size: 0.7rem;
+    }
+
+    .log-entry {
+        display: flex;
+        align-items: center;
+        gap: 0.2rem;
+        padding: 0.1rem 0;
+        border-bottom: 1px solid #edf2f7;
+        font-size: 0.7rem;
+    }
+    .log-time {
+        color: #4a5568;
+        width: 35px;
+        font-size: 0.6rem;
+    }
+    .log-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        border: 1px solid #e2e8f0;
+    }
+    .log-activity {
+        flex: 1;
+        font-weight: 500;
+        color: #1a2332;
+    }
+    .log-duration {
+        color: #4a5568;
+        font-size: 0.6rem;
+    }
+
+    .empty-day {
+        color: #a0aec0;
+        text-align: center;
+        padding: 0.5rem 0;
+    }
+
+    .day-total {
+        text-align: center;
+        font-weight: 600;
+        color: #4f8cf7;
+        padding-top: 0.3rem;
+        border-top: 1px solid #e2e8f0;
+        margin-top: 0.3rem;
+        font-size: 0.8rem;
+    }
+
+    .summary-section {
+        background: white;
+        border-radius: 12px;
+        padding: 1.2rem;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        margin-top: 1.5rem;
+    }
+    .summary-section h2 {
+        margin-top: 0;
+        margin-bottom: 0.8rem;
+        font-size: 1.2rem;
+    }
+    .summary-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        margin-bottom: 0.8rem;
+    }
+    .summary-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        background: #f9fafb;
+        padding: 0.4rem 0.8rem;
+        border-radius: 8px;
+    }
+    .summary-color {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        border: 1px solid #e2e8f0;
+    }
+    .summary-details {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    .summary-activity {
+        font-weight: 500;
+        color: #1a2332;
+        min-width: 60px;
+    }
+    .summary-time {
+        color: #4a5568;
+        font-size: 0.85rem;
+    }
+    .summary-bar {
+        flex: 1;
+        background: #e2e8f0;
+        height: 6px;
+        border-radius: 3px;
+        overflow: hidden;
+        min-width: 40px;
+    }
+    .summary-bar-fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.3s;
+    }
+    .total-label {
+        text-align: center;
+        font-weight: 600;
+        color: #1a2332;
+        margin: 0.5rem 0 0 0;
+    }
+
+    @media (max-width: 768px) {
+        .week-grid {
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.3rem;
+        }
+        .day-column {
+            min-height: 150px;
+            padding: 0.3rem;
+        }
+        .log-entry { font-size: 0.6rem; }
+        .log-time { width: 30px; font-size: 0.5rem; }
+        .log-dot { width: 8px; height: 8px; }
+        .log-activity { font-size: 0.6rem; }
+        .log-duration { font-size: 0.5rem; }
+        .day-total { font-size: 0.7rem; }
+        .day-header { font-size: 0.8rem; }
+    }
+    @media (max-width: 500px) {
+        .week-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+</style>
 {% endblock %}

@@ -9,33 +9,28 @@
         <p class="subtitle">Choose what you're doing, then tap "Stop" when you're done.</p>
     </div>
 
-    <!-- Color Grid – smaller squares -->
+    <!-- Color Grid -->
     <div class="color-grid compact">
         {% for color in colors %}
         <div class="color-square small" 
              data-color="{{ color.color }}" 
-             style="background-color: {{ color_hex_map[color.color] }};" 
+             style="background: {{ color.hex_code }};" 
              title="{{ color.activity }}">
             <span class="color-label">{{ color.activity }}</span>
         </div>
         {% endfor %}
     </div>
 
-    <!-- Timer Section – rearranged -->
+    <!-- Timer Section -->
     <div class="timer-section" id="timer-section" style="display: none;">
-        <!-- Timer display at the top (big numbers) -->
         <div class="timer-header">
             <span class="mascot-timer" id="mascot-emoji">🦊</span>
             <span id="current-activity" class="activity-name">Working...</span>
         </div>
         <div class="timer-display" id="timer-bar">0s</div>
-        
-        <!-- Progress bar (thick, visible) -->
         <div class="timer-progress">
             <div class="timer-progress-fill" id="timer-progress-fill" style="width: 0%;"></div>
         </div>
-        
-        <!-- Stop button at the bottom -->
         <button id="stop-btn" class="stop-btn">⏹ Stop</button>
     </div>
 </div>

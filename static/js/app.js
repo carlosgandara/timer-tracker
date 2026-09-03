@@ -13,22 +13,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const stopBtn = document.getElementById('stop-btn');
     const mascotEmoji = document.getElementById('mascot-emoji');
 
+    console.log('✅ Timer app loaded');
+
     // Hide timer section initially
     timerSection.style.display = 'none';
 
     colorSquares.forEach(square => {
         square.addEventListener('click', () => {
+            console.log('🟦 Color clicked:', square.dataset.color);
             // If a timer is already running, stop it first
             if (timerInterval) {
-                stopTimer();
-                // Also save the log? The user expects to stop and save on stop click,
-                // but here we're starting a new one; we should save the previous one.
-                // Better: when clicking a new color, stop and save the previous.
-                // But we already have saveLog() in stop, so call stopTimer which doesn't save.
-                // We'll instead call a custom function.
-                // Let's just stop without saving; the user will click stop to save.
-                // But we want to hide grid/show timer again.
-                // We'll just stop the timer without saving.
                 clearInterval(timerInterval);
                 timerInterval = null;
                 timerSection.style.display = 'none';
@@ -44,10 +38,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     stopBtn.addEventListener('click', () => {
+        console.log('⏹ Stop button clicked');
         if (timerInterval) {
             stopTimer();
             saveLog();
-            // Show color grid again, hide timer
             const colorGrid = document.querySelector('.color-grid');
             colorGrid.style.display = 'grid';
             timerSection.style.display = 'none';
@@ -55,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function startTimer(activity) {
+        console.log('⏱️ Starting timer for:', activity);
         timerSection.style.display = 'block';
         currentActivity.textContent = '⏱️ ' + activity;
         timerBar.textContent = '0s';
@@ -74,6 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function stopTimer() {
+        console.log('⏹ Stopping timer, elapsed:', elapsedSeconds);
         clearInterval(timerInterval);
         timerInterval = null;
         timerSection.style.display = 'none';
@@ -82,23 +78,33 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function saveLog() {
+        console.log('💾 saveLog() called');
+        console.log('selectedColor:', selectedColor);
+        console.log('elapsedSeconds:', elapsedSeconds);
+
         if (!selectedColor || elapsedSeconds < 1) {
             alert('Please log at least 1 second.');
             return;
         }
+
+        const payload = { color: selectedColor, duration: elapsedSeconds };
+        console.log('📤 Sending:', payload);
+
         fetch('/log', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ color: selectedColor, duration: elapsedSeconds })
+            body: JSON.stringify(payload)
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('📡 Response status:', response.status);
+            return response.json();
+        })
         .then(data => {
+            console.log('📦 Response data:', data);
             if (data.success) {
-                // Confetti or alert
                 alert('✅ Logged ' + selectedColor + ' for ' + elapsedSeconds + 's');
                 elapsedSeconds = 0;
                 selectedColor = null;
-                // Show the grid again (already done in stop listener)
                 document.querySelector('.color-grid').style.display = 'grid';
                 timerSection.style.display = 'none';
             } else {
@@ -106,7 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         })
         .catch(error => {
-            console.error('Error:', error);
+            console.error('❌ Network error:', error);
             alert('❌ Network error.');
         });
     }
